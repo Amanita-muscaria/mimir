@@ -1,0 +1,16 @@
+[package]
+name = "mimir"
+version = "0.1.0"
+authors = ["Trametes_Versicolor <njh.ihk@gmail.com>"]
+edition = "2018"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[dependencies]
+regex = "*"
+lazy_static = "*"
+structopt = "*"
