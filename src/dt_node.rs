@@ -40,7 +40,7 @@ impl DTNode {
         };
     }
 
-    pub fn add_node_get< S: Into<String> + Clone>(
+    pub fn add_node_get<S: Into<String> + Clone>(
         &mut self,
         path: &[S],
         new_node: DTNode,
@@ -52,7 +52,7 @@ impl DTNode {
     }
 
     pub fn get_or_add_node<S: Into<String> + Clone>(
-        & mut self,
+        &mut self,
         path: &[S],
         node_name: &str,
     ) -> Option<&DTNode> {
