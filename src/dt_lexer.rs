@@ -91,7 +91,7 @@ impl<'a> DTLexer<'a> {
                 },
                 DTToken::BlockCommentStart => while lex.token != DTToken::BlockCommentEnd {
                     lex.advance();
-                    println!("line comment: {}", lex.slice());
+                    println!("block comment: {}", lex.slice());
                     if lex.token == DTToken::End {
                         return Err(DTError::UnexpectedEOF(lex.range().start));
                     } else if lex.token == DTToken::Error {
