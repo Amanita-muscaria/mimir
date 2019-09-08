@@ -11,7 +11,7 @@ pub enum RootError {
     Redefine,
     Err,
 }
-
+#[derive(Debug)]
 pub struct Root {
     defines: HashMap<String, String>,
     labels: HashMap<String, Vec<String>>,
@@ -43,7 +43,7 @@ impl Root {
                 n.add_child(DTNode::new(name.to_string()));
             }
             None => {
-                if path.len() != 1 {
+                if path.len() > 0 {
                     return Err(RootError::Err);
                 } else {
                     self.the_root = Some(DTNode::new(name.to_string()));
@@ -90,10 +90,10 @@ impl Root {
         let node = path.split_off(path.len() - 2)[0].to_string();
         match find_node(&mut root, &path) {
             Ok(n) => match n.remove(node) {
-                Ok(_) => Ok(Self{
+                Ok(_) => Ok(Self {
                     defines: self.defines,
                     labels: self.labels,
-                    the_root: Some(root)
+                    the_root: Some(root),
                 }),
                 Err(_) => Err(RootError::MissingNode),
             },
@@ -114,7 +114,7 @@ impl Root {
                 Ok(_) => Ok(Self {
                     defines: self.defines,
                     labels: self.labels,
-                    the_root: Some(root)
+                    the_root: Some(root),
                 }),
                 Err(_) => Err(RootError::MissingNode),
             },
@@ -123,17 +123,19 @@ impl Root {
     }
 }
 
-fn find_node<'a, P: ToString>(root: &'a mut DTNode, path: &Vec<P>) -> Result<&'a mut DTNode, RootError> {
-    if root.name == path[0].to_string() {
-        let mut n = root;
-        for p in path {
-            match n.get_child(p.to_string()) {
-                Some(o) => n = o,
-                None => return Err(RootError::Err),
-            }
+fn find_node<'a, P: ToString>(
+    root: &'a mut DTNode,
+    path: &Vec<P>,
+) -> Result<&'a mut DTNode, RootError> {
+    let mut n = root;
+    for p in path {
+        if n.name == p.to_string() {
+            break;
         }
-        return Ok(n);
-    } else {
-        return Err(RootError::MissingNode);
+        match n.get_child(p.to_string()) {
+            Some(o) => n = o,
+            None => return Err(RootError::MissingNode),
+        }
     }
+    return Ok(n);
 }

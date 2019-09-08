@@ -63,7 +63,7 @@ enum DTToken {
     #[token = "\n"]
     NewLine,
 
-    #[regex = r#"([#[:alnum:]_@,./-]+)"#]
+    #[regex = r#"(/?|[#[:alnum:]_@,.-]+)"#]
     Text,
 }
 

@@ -74,10 +74,7 @@ fn main() {
     while !files.is_empty() {
         let mut current = files.pop().unwrap();
         loop {
-            let token = match current.pop() {
-                Some(t) => t,
-                None => panic!("Invalid token stack"),
-            };
+            let token = current.remove(0);
             match token {
                 DTInfo::Include(i) => match File::open(&i) {
                     Ok(mut f) => {
@@ -160,4 +157,6 @@ fn main() {
             }
         }
     }
+
+    println!("{:#?}", r);
 }
