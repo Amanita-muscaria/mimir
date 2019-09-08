@@ -1,9 +1,13 @@
+#![feature(core_panic)]
+
 #[macro_use]
 extern crate structopt;
-mod dt_lexer;
 
-use crate::dt_lexer::{DTError, DTInfo};
-use dt_lexer::DTLexer;
+mod dt_lexer;
+mod root;
+
+use dt_lexer::{lex, DTInfo};
+use root::Root;
 use std::fs::File;
 use std::io::Read;
 use std::str;
@@ -49,32 +53,109 @@ struct Opt {
 fn main() {
     let opt = Opt::from_args();
     let first_file = opt.input;
-    let mut lex_stack: Vec<DTLexer> = Vec::new();
-    let mut file_stack: Vec<(String, String)> = Vec::new();
-    let mut f = File::open(&first_file).unwrap();
-    let mut file_data = String::new();
+    let mut r = Root::new();
+    let mut files: Vec<Vec<DTInfo>> = Vec::new();
+    let mut path: Vec<String> = Vec::new();
 
-    match f.read_to_string(&mut file_data) {
-        Ok(_o) => (),
-        Err(_e) => panic!("Unknown file {}", first_file),
-    };
-    file_stack.push((first_file, file_data));
-    let mut lex = DTLexer::new(&file_stack[0].1);
+    match File::open(&first_file) {
+        Ok(mut f) => {
+            let mut d = String::new();
+            match f.read_to_string(&mut d) {
+                Ok(_o) => match lex(&d) {
+                    Ok(t) => files.push(t),
+                    Err(e) => panic!("Err {:?} when lexxing {}", e, first_file),
+                },
+                Err(e) => panic!("Could not read file {}. Error: {}", first_file, e),
+            }
+        }
+        Err(e) => panic!("could not open {}. Error: {}", first_file, e),
+    }
 
-    loop {
-        let next = lex.next();
-        println!("{:?}", next);
-        match next {
-            Err(e) => match e {
-                DTError::UnexpectedEOF(_n) => {
-                    println!("UEOF");
+    while !files.is_empty() {
+        let mut current = files.pop().unwrap();
+        loop {
+            let token = match current.pop() {
+                Some(t) => t,
+                None => panic!("Invalid token stack"),
+            };
+            match token {
+                DTInfo::Include(i) => match File::open(&i) {
+                    Ok(mut f) => {
+                        let mut d = String::new();
+                        match f.read_to_string(&mut d) {
+                            Ok(_o) => match lex(&d) {
+                                Ok(t) => {
+                                    files.push(current);
+                                    files.push(t);
+                                    break;
+                                }
+                                Err(e) => panic!("Err {:?} when lexxing {}", e, i),
+                            },
+                            Err(e) => panic!("Error reading {}: {:?}", i, e),
+                        }
+                    }
+                    Err(e) => panic!("Error opening {}: {:?}", i, e),
+                },
+                DTInfo::Directive(d, t) => {
+                    match d.as_str() {
+                        "delete-node" => {
+                            match t {
+                                Some(mut t) => {
+                                    if t.starts_with("&") {
+                                        let name = t.split_off(1);
+                                        r = match r.delete_from_label(name) {
+                                            Err(e) => panic!("Error while deleting node: {:?}", e),
+                                            Ok(s) => s,
+                                        };
+                                    } else {
+                                        let new = t.split("/").map(|i| i.to_string());
+                                        let mut p = path.clone();
+                                        p.append(&mut new.collect());
+                                        r = match r.delete_node(p) {
+                                            Err(e) => panic!("Error while deleting node: {:?}", e),
+                                            Ok(s) => s,
+                                        };
+                                    }
+                                }
+                                None => panic!("Unknown node to delete"),
+                            };
+                        }
+                        _ => println!("directive: {}", d),
+                    };
+                }
+                DTInfo::Node(label, name) => {
+                    r = match r.add_node(&path, &name) {
+                        Ok(s) => s,
+                        Err(e) => panic!("Error when adding node: {:?}", e),
+                    };
+                    path.push(name);
+                    if let Some(l) = label {
+                        r.add_path(l, &path);
+                    }
+                }
+                DTInfo::NodeEnd => {
+                    path.pop();
+                }
+                DTInfo::Property(p, v) => {
+                    r = match r.add_property(&path, (p, v)) {
+                        Ok(s) => s,
+                        Err(e) => panic!("Error when adding property: {:?}", e),
+                    };
+                }
+                DTInfo::Define(n, v) => {
+                    r = match r.add_define(n, v) {
+                        Ok(s) => s,
+                        Err(e) => panic!("Error when adding define: {:?}", e),
+                    };
+                }
+                DTInfo::EOF => {
                     break;
                 }
-                _ => continue,
-            },
-            Ok(i) => {
-                if i == DTInfo::EOF {
-                    break;
+                DTInfo::RefNode(n) => {
+                    match r.get_path(n) {
+                        Ok(p) => path = p,
+                        Err(e) => panic!("{:?}", e),
+                    };
                 }
             }
         }
