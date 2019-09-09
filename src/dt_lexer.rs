@@ -99,13 +99,20 @@ pub fn lex(file_data: &String) -> Result<Vec<DTInfo>, DTError> {
             }
             DTToken::Define => {
                 lexer.advance();
-                if lexer.token != DTToken::Text {
-                    return Err(DTError::BadDefine(lexer.range().start));
-                } else {
-                    let data = lexer.slice().to_string();
-                    let def: Vec<_> = data.splitn(2, char::is_whitespace).collect();
-                    tokens.push(DTInfo::Define(def[0].to_string(), def[1].to_string()));
+                let lhs = lexer.slice().to_string();
+                let mut rhs: String = String::new();
+                lexer.advance();
+
+                while lexer.token != DTToken::NewLine {
+                    if lexer.token == DTToken::Text {
+                        rhs.push(' ');
+                        rhs.push_str(lexer.slice());
+                    } else {
+                        return Err(DTError::BadDefine(lexer.range().start));
+                    }
+                    lexer.advance();
                 }
+                tokens.push(DTInfo::Define(lhs, rhs));
             }
             DTToken::Text => {
                 let lhs = lexer.slice().to_string();
