@@ -2,6 +2,7 @@ mod dt_node;
 
 use dt_node::DTNode;
 use std::collections::HashMap;
+use crate::dt_lexer::DTError;
 
 #[derive(Debug)]
 pub enum RootError {
@@ -128,14 +129,15 @@ fn find_node<'a, P: ToString>(
     path: &Vec<P>,
 ) -> Result<&'a mut DTNode, RootError> {
     let mut n = root;
-    for p in path {
-        if n.name == p.to_string() {
-            break;
+
+    if n.name == path[0].to_string() {
+        for p in &path[1..] {
+            match n.get_child(p.to_string()) {
+                Some(o) => n = o,
+                None => return Err(RootError::MissingNode)
+            }
         }
-        match n.get_child(p.to_string()) {
-            Some(o) => n = o,
-            None => return Err(RootError::MissingNode),
-        }
+        return Ok(n);
     }
-    return Ok(n);
+    return Err(RootError::MissingNode);
 }
